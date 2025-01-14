@@ -61,5 +61,18 @@ def chat():
     gpt_response = custom_gpt(user_message)  # Call the CustomGPT logic
     return jsonify({"reply": gpt_response})
 
+@app.route('/upload', methods=['POST'])
+def upload_pdf():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    # Save the file to the "CustomGPT_files" directory
+    file.save(os.path.join("CustomGPT_files", file.filename))
+    return jsonify({"message": f"Uploaded {file.filename} successfully"}), 200
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
