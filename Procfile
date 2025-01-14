@@ -1,1 +1,1 @@
-web: python custom_gpt_api.py
+web: gunicorn -w 4 -b 0.0.0.0:5000 custom_gpt_api:app
