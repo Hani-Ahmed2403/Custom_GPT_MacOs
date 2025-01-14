@@ -44,6 +44,12 @@ def chat():
     if api_key != CUSTOM_API_KEY:
         return jsonify({"error": "Unauthorized"}), 401
 
+    # Process the query
+    data = request.json
+    user_message = data.get('message', '')
+    gpt_response = custom_gpt(user_message)  # Call the CustomGPT logic
+    return jsonify({"reply": gpt_response})
+
     # Process the query if the API key is valid
     data = request.json
     user_message = data.get('message', '')
