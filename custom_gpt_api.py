@@ -20,16 +20,21 @@ def custom_gpt(query):
 
     for filename in os.listdir(folder_path):
         if filename.endswith(".pdf"):
+            print(f"Processing file: {filename}")  # Debug: File being processed
             file_path = os.path.join(folder_path, filename)
 
             try:
                 reader = PdfReader(file_path)
                 content = ""
                 for page in reader.pages:
-                    content += page.extract_text()
+                    extracted_text = page.extract_text()
+                    content += extracted_text
 
+                # Match query and return a snippet of the matching text
                 if query.lower() in content.lower():
-                    response = f"Found in {filename}: {content}"
+                    start_index = content.lower().find(query.lower())
+                    snippet = content[start_index:start_index + 200]  # Return 200 characters around the match
+                    response = f"Found in {filename}: {snippet}..."
                     break
             except Exception as e:
                 response = f"Error reading {filename}: {e}"
