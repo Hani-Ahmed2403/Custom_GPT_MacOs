@@ -31,10 +31,12 @@ def custom_gpt(query):
     return response
 
 # Define the API route with API key validation
-@app.route('/')
-def home():
-    return "Welcome to the Custom GPT API! Use the /chat endpoint to interact."
-
+@app.route('/chat', methods=['POST'])
+def chat():
+    # Validate the API key
+    api_key = request.headers.get('Authorization')
+    if api_key != CUSTOM_API_KEY:
+        return jsonify({"error": "Unauthorized"}), 401
 
     # Process the query if the API key is valid
     data = request.json
