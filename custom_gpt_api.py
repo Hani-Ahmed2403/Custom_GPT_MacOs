@@ -74,5 +74,11 @@ def upload_pdf():
     file.save(os.path.join("CustomGPT_files", file.filename))
     return jsonify({"message": f"Uploaded {file.filename} successfully"}), 200
 
+@app.route('/list', methods=['GET'])
+def list_files():
+    files = os.listdir("CustomGPT_files")
+    return jsonify({"files": files})
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
