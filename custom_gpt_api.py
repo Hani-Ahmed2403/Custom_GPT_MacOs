@@ -4,6 +4,12 @@ from PyPDF2 import PdfReader
 
 app = Flask(__name__)
 
+
+# Ensure the "CustomGPT_files" directory exists
+if not os.path.exists("CustomGPT_files"):
+    os.makedirs("CustomGPT_files")
+    print("Created missing 'CustomGPT_files' directory.")
+
 # Define your custom API key
 CUSTOM_API_KEY = os.getenv( "CUSTOM_API_KEY")  # Use environment v
 
@@ -37,12 +43,6 @@ def chat():
     api_key = request.headers.get('Authorization')
     if api_key != CUSTOM_API_KEY:
         return jsonify({"error": "Unauthorized"}), 401
-
-    # Process the query
-    data = request.json
-    user_message = data.get('message', '')
-    gpt_response = custom_gpt(user_message)  # Call the CustomGPT logic
-    return jsonify({"reply": gpt_response})
 
     # Process the query if the API key is valid
     data = request.json
