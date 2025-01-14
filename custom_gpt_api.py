@@ -43,7 +43,8 @@ def custom_gpt(query):
 # Root route
 @app.route('/')
 def home():
-    return "Welcome to the Custom GPT API! Use /upload to upload files and /chat to query them."
+    print("Root route accessed")
+    return "Welcome to the Custom GPT API! Use /upload to upload files and /chat to query."
 
 # Define the API route with API key validation
 @app.route('/chat', methods=['POST'])
@@ -76,6 +77,7 @@ def upload_pdf():
 def list_files():
     files = os.listdir("CustomGPT_files")
     return jsonify({"files": files})
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
