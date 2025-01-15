@@ -1,9 +1,9 @@
 # Use a lightweight Python base image
 FROM python:3.10-slim
 
-# Install system dependencies for Tesseract
+# Install system dependencies, including Poppler
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr libtesseract-dev && \
+    tesseract-ocr libtesseract-dev poppler-utils && \
     rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
