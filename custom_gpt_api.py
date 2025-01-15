@@ -97,6 +97,9 @@ def home():
 # Define the API route with API key validation
 @app.route('/chat', methods=['POST'])
 def chat():
+    # Log all headers for debugging
+    print(f"Headers received: {dict(request.headers)}")  # Debug: Log all headers
+
     # Validate the API key
     api_key = request.headers.get('Authorization')
     print(f"Received API Key: {api_key}")  # Debug: Log the received API key
@@ -109,7 +112,7 @@ def chat():
     # Process the query
     data = request.json
     user_message = data.get('message', '')
-    gpt_response = custom_gpt(user_message)  # Call the CustomGPT logic
+    gpt_response = custom_gpt(user_message)
     return jsonify({"reply": gpt_response})
 
 @app.route('/upload', methods=['POST'])
