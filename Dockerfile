@@ -1,20 +1,21 @@
+# Use a lightweight Python base image
 FROM python:3.10-slim
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Debug step: Print during build
+RUN echo "Starting Dockerfile build" && apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr libtesseract-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 
-# Copy project files to the container
+# Copy all project files into the container
 COPY . /app
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the port Flask will run on
+# Expose the Flask app port
 EXPOSE 5000
 
 # Command to run the application
