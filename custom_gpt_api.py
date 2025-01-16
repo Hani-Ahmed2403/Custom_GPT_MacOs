@@ -62,7 +62,8 @@ def custom_gpt(query):
                     f.write(content)
 
             # Debug: Print full extracted content
-            print(f"Full OCR content extracted (first 1000 chars):\n{content[:1000]}\n")
+            print(f"Processing file: {Pakistan_Labour_Laws}")
+            print(f"Full OCR content extracted (first 500 chars):\n{content[:500]}\n")
 
             # Use partial matching for query
             if is_query_match(query, content):
