@@ -97,16 +97,12 @@ def home():
 # Define the API route with API key validation
 @app.route('/chat', methods=['POST'])
 def chat():
-    # Log all headers for debugging
-    print(f"Headers received: {dict(request.headers)}")  # Debug: Log all headers
-
-    # Validate the API key
     api_key = request.headers.get('Authorization')
-    print(f"Received API Key: {api_key}")  # Debug: Log the received API key
-    print(f"Expected API Key: {CUSTOM_API_KEY}")  # Debug: Log the expected API key
+    print(f"Received API Key: {api_key}")  # Debug log
+    print(f"Expected API Key: {CUSTOM_API_KEY}")  # Debug log
 
     if api_key != CUSTOM_API_KEY:
-        print("API Key mismatch! Unauthorized access.")  # Debug: Log mismatch
+        print("API Key mismatch! Unauthorized access.")  # Debug log
         return jsonify({"error": "Unauthorized"}), 401
 
     # Process the query
