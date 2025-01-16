@@ -39,7 +39,7 @@ def custom_gpt(query):
     print(f"Files in {folder_path}: {files}")  # Debug: Log all PDFs in the folder
 
     for filename in files:
-        print(f"Processing file: {filename}")  # Debug: File being processed
+        print(f"Processing file path: {file_path}")  # Debug: File being processed
         file_path = os.path.join(folder_path, filename)
 
         try:
