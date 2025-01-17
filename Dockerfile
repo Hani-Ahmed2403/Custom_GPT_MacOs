@@ -1,5 +1,11 @@
-# Use a prebuilt base image with Tesseract and Poppler
-FROM jbarlow83/ocrmypdf:latest
+# Use a lightweight Python base image
+FROM python:3.10-slim
+
+# Install system dependencies, including Tesseract OCR and Poppler utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr libtesseract-dev poppler-utils && \
+    apt-get install -y python3-pip && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
