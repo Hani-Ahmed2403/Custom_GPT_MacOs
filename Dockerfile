@@ -1,17 +1,21 @@
-# Use a prebuilt base image with Tesseract and Poppler
-FROM jbarlow83/ocrmypdf:latest
+FROM python:3.10-bullseye
 
-# Set the working directory
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr libtesseract-dev poppler-utils && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set working directory
 WORKDIR /app
 
-# Copy all project files into the container
+# Copy project files
 COPY . /app
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the Flask app port
+# Expose Flask app port
 EXPOSE 5000
 
-# Command to run the application
+# Run the app
 CMD ["gunicorn", "-b", "0.0.0.0:5000", "custom_gpt_api:app"]
