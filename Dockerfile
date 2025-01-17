@@ -1,13 +1,10 @@
 # Use a lightweight Python base image
 FROM python:3.10-slim
 
-# Install system dependencies, including Tesseract OCR
+# Install Tesseract OCR, Poppler, and other dependencies in a single step
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr libtesseract-dev poppler-utils && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install system dependencies, including Poppler
-RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    libtesseract-dev \
     poppler-utils && \
     rm -rf /var/lib/apt/lists/*
 
