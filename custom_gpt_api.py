@@ -6,6 +6,10 @@ from pdf2image import convert_from_path
 from PIL import Image
 from multiprocessing import Pool
 from difflib import SequenceMatcher
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -15,7 +19,7 @@ if not os.path.exists("CustomGPT_files"):
     print("Created missing 'CustomGPT_files' directory.")
 
 # Define your custom API key
-CUSTOM_API_KEY = os.getenv("CUSTOM_API_KEY")  # Use environment variable for API key
+CUSTOM_API_KEY = os.getenv("CUSTOM_API_KEY")  # Fetch from .env file
 
 # Function to perform OCR on a single image
 def ocr_page(image):
