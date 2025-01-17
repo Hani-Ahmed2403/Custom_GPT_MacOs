@@ -39,12 +39,12 @@ def custom_gpt(query):
     print(f"Files in {folder_path}: {files}")  # Debug: Log all PDFs in the folder
 
     for filename in files:
-        print(f"Processing file path: {file_path}")  # Debug: File being processed
+        print(f"Processing file: {filename}")  # Debug: File being processed
         file_path = os.path.join(folder_path, filename)
 
         try:
             # Process only the first 3 pages for optimization
-            images = convert_from_path(file_path, first_page=1, last_page=3)
+            images = convert_from_path(file_path, first_page=1, last_page=3, poppler_path="/usr/bin")
             ocr_output_path = f"{file_path}.txt"
 
             # Check if OCR results are cached
