@@ -4,8 +4,7 @@ from PyPDF2 import PdfReader
 from pytesseract import image_to_string
 from pdf2image import convert_from_path
 from PIL import Image
-from multiprocessing import Pool
-from difflib import SequenceMatcher
+import psutil  # For memory usage debugging
 
 app = Flask(__name__)
 
@@ -19,98 +18,56 @@ CUSTOM_API_KEY = os.getenv("CUSTOM_API_KEY")  # Use environment variable for API
 
 # Function to perform OCR on a single image
 def ocr_page(image):
-    # Downscale image for faster processing
-    image = image.resize((image.width // 2, image.height // 2))
+    image = image.resize((image.width // 2, image.height // 2))  # Downscale image for memory optimization
     return image_to_string(image, config="--oem 3 --psm 6")
 
-# Function to check partial query match
-def is_query_match(query, content):
-    similarity = SequenceMatcher(None, query.lower(), content.lower()).ratio()
-    print(f"Similarity score for query '{query}': {similarity}")  # Debug: Log similarity score
-    return similarity > 0.3  # Lower threshold for partial match
-
-# Function to process user queries with CustomGPT logic
+# Function to process user queries
 def custom_gpt(query):
-    folder_path = "CustomGPT_files"  # Folder containing your PDFs
+    folder_path = "CustomGPT_files"
     response = "No relevant content found."
 
-    # Debug: List all files in the folder
+    print(f"Processing query: {query}")  # Debug: Log the query
     files = [f for f in os.listdir(folder_path) if f.endswith(".pdf")]
-    print(f"Files in {folder_path}: {files}")  # Debug: Log all PDFs in the folder
+    print(f"Files in {folder_path}: {files}")  # Debug: List files in the directory
 
     for filename in files:
-        print(f"Processing file: {filename}")  # Debug: File being processed
         file_path = os.path.join(folder_path, filename)
+        print(f"Processing file: {file_path}")  # Debug: Log file being processed
 
         try:
-            # Process only the first 3 pages for optimization
-            images = convert_from_path(file_path, first_page=1, last_page=3, popple_path="/usr/bin")
-            ocr_output_path = f"{file_path}.txt"
+            # Convert PDF to images
+            images = convert_from_path(file_path, poppler_path="/usr/bin")
+            print(f"Generated {len(images)} images from {file_path}")  # Debug: Log number of images generated
 
-            # Check if OCR results are cached
-            if os.path.exists(ocr_output_path):
-                with open(ocr_output_path, "r") as f:
-                    content = f.read()
-            else:
-                # Perform OCR in parallel for better performance
-                with Pool(processes=4) as pool:  # Adjust number of processes based on your CPU cores
-                    text_list = pool.map(ocr_page, images)
-                content = ''.join(text_list)
+            content = ""
+            for i, image in enumerate(images):
+                print(f"Processing page {i + 1} of {filename}")  # Debug: Log page number
+                content += image_to_string(image, config="--oem 3 --psm 6")
 
-                # Cache the OCR results
-                with open(ocr_output_path, "w") as f:
-                    f.write(content)
+            print(f"Extracted content (first 500 chars): {content[:500]}")  # Debug: Log extracted text
 
-            # Debug: Print full extracted content
-            print(f"Full OCR content extracted (first 1000 chars):\n{content[:1000]}\n")
-
-            # Use partial matching for query
-            if is_query_match(query, content):
-                print(f"Query '{query}' found in {filename}")
-                response = f"Found in {filename}: Matching content found!"
+            # Search for the query in the content
+            if query.lower() in content.lower():
+                start_index = content.lower().find(query.lower())
+                snippet = content[start_index:start_index + 200]
+                response = f"Found in {filename}: {snippet}..."
                 break
-            else:
-                # Debug: Check each word in the query
-                for word in query.lower().split():
-                    print(f"Checking for word '{word}' in the content...")
-                    if word in content.lower():
-                        print(f"Word '{word}' found in the content!")
-                        start_index = content.lower().find(word)
-                        snippet = content[start_index:start_index + 200]
-                        response = f"Found in {filename}: Partial match for word '{word}': {snippet}..."
-                        break
-                    else:
-                        print(f"Word '{word}' NOT found in the content.")
-
         except Exception as e:
-            print(f"Error processing {filename}: {e}")
+            print(f"Error processing {filename}: {e}")  # Debug: Log exceptions
 
-    print(f"Final response: {response}")
+    print(f"Final response: {response}")  # Debug: Log the final response
     return response
 
-# Root route
-@app.route('/')
-def home():
-    print("Root route accessed")
-    return "Welcome to the Custom GPT API! Use /upload to upload files and /chat to query."
-
-# Define the API route with API key validation
+# Define the API route
 @app.route('/chat', methods=['POST'])
 def chat():
-    # Validate the API key
     api_key = request.headers.get('Authorization')
-    print(f"Received API Key: {api_key}")  # Debug: Log the received API key
-    print(f"Expected API Key: {CUSTOM_API_KEY}")  # Debug: Log the expected API key
-
     if api_key != CUSTOM_API_KEY:
-        print("API Key mismatch! Unauthorized access.")  # Debug: Log mismatch
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Process the query
     data = request.json
     user_message = data.get('message', '')
-    gpt_response = custom_gpt(user_message)  # Call the CustomGPT logic
-    return jsonify({"reply": gpt_response})
+    return jsonify({"reply": custom_gpt(user_message)})
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
@@ -124,11 +81,6 @@ def upload_pdf():
     # Save the file to the "CustomGPT_files" directory
     file.save(os.path.join("CustomGPT_files", file.filename))
     return jsonify({"message": f"Uploaded {file.filename} successfully"}), 200
-
-@app.route('/list', methods=['GET'])
-def list_files():
-    files = os.listdir("CustomGPT_files")
-    return jsonify({"files": files})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
