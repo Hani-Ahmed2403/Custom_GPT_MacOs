@@ -1,6 +1,27 @@
+# Python-related files
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
 *.log
+
+# macOS metadata
 .DS_Store
-CustomGPT_files/
+
+# Temporary editor files
+*.swp
+*.swo
+
+# IDE-specific directories
+.vscode/
+.idea/
+
+# Environment files
 .env
+.env.*
+
+# Custom directories
+CustomGPT_files/
 
