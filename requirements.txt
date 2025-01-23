@@ -7,4 +7,6 @@ Pillow
 python-dotenv
 gevent
 psutil
+watchdog
+openai
 
