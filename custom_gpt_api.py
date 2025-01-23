@@ -5,22 +5,17 @@ from pytesseract import image_to_string
 from pdf2image import convert_from_path
 from PIL import Image
 from difflib import SequenceMatcher
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-import threading
-import subprocess
 import openai
 
 app = Flask(__name__)
 
 # Define constants
-PDF_ROOT = "/Users/haniahmed/Documents/Uploaded_PDFs"
-PDF_FOLDER = "/Users/haniahmed/Documents/Uploaded_PDFs/Basic_Pdfs"
-CUSTOMGPT_FILES = "CustomGPT_files"
+PDF_ROOT = "/Users/haniahmed/Documents/Custom_GPT/Custom_GPT/CustomGPT_files"
+CUSTOMGPT_FILES = PDF_ROOT
 POPLER_PATH = "/opt/homebrew/bin"
 
 # Ensure directories exist
-for path in [PDF_ROOT, PDF_FOLDER, CUSTOMGPT_FILES]:
+for path in [PDF_ROOT, CUSTOMGPT_FILES]:
     if not os.path.exists(path):
         os.makedirs(path)
         print(f"Created missing directory: {path}")
@@ -36,6 +31,7 @@ def get_all_pdfs():
         for file in files:
             if file.endswith(".pdf"):
                 pdf_files.append(os.path.join(root, file))
+    print(f"Found PDF files: {pdf_files}")  # Debug log
     return pdf_files
 
 # Helper: Search query in PDFs
@@ -57,6 +53,7 @@ def search_query_in_pdfs(query):
                     })
         except Exception as e:
             print(f"Error reading {pdf_path}: {e}")
+    print(f"Search results: {results}")  # Debug log
     return results
 
 # Helper: Check for partial query matches
@@ -80,18 +77,8 @@ def custom_gpt(query):
             f"{top_result['snippet']}"
         )
 
-    # Step 2: Search in cached text files
-    for filename in os.listdir(CUSTOMGPT_FILES):
-        if filename.endswith(".pdf.txt"):
-            with open(os.path.join(CUSTOMGPT_FILES, filename), "r") as f:
-                content = f.read()
-                if is_query_match(query, content):
-                    start_index = content.lower().find(query.lower())
-                    snippet = content[start_index:start_index + 200]
-                    return f"Found in {filename.replace('.txt', '')}: {snippet}..."
-
-    # Step 3: Fallback to OpenAI GPT
-    print("Query not found in PDFs or cached files. Falling back to OpenAI GPT.")
+    # Step 2: Fallback to OpenAI GPT
+    print("Query not found in PDFs. Falling back to OpenAI GPT.")
     try:
         ai_response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -116,5 +103,22 @@ def chat():
     user_message = data.get('message', '')
     return jsonify({"reply": custom_gpt(user_message)})
 
+@app.route('/list', methods=['GET'])
+def list_pdfs():
+    """List all PDFs available in the root directory."""
+    pdf_files = [os.path.relpath(path, PDF_ROOT) for path in get_all_pdfs()]
+    return jsonify({"pdf_files": pdf_files})
+
+@app.route('/routes', methods=['GET'])
+def list_routes():
+    """List all registered routes in the app."""
+    output = []
+    for rule in app.url_map.iter_rules():
+        methods = ','.join(rule.methods)
+        output.append(f"{rule.endpoint}: {rule.rule} [{methods}]")
+    return jsonify(output)
+
+# Main execution
 if __name__ == "__main__":
+    print(f"Starting server with PDF_ROOT set to: {PDF_ROOT}")
     app.run(debug=True, port=8000)
