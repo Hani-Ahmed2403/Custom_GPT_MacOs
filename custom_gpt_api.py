@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import os
+from pathlib import Path
 from PyPDF2 import PdfReader
 from pytesseract import image_to_string
 from pdf2image import convert_from_path
@@ -9,15 +10,16 @@ import openai
 
 app = Flask(__name__)
 
-# Define constants
-PDF_ROOT = "/Users/haniahmed/Documents/Custom_GPT/Custom_GPT/CustomGPT_files"
-CUSTOMGPT_FILES = PDF_ROOT
+# Define constants using `pathlib`
+BASE_DIR = Path(__file__).parent  # Dynamically get the base directory
+PDF_ROOT = BASE_DIR / "Uploaded_PDFs"
+CUSTOMGPT_FILES = BASE_DIR / "CustomGPT_files"
 POPLER_PATH = "/opt/homebrew/bin"
 
 # Ensure directories exist
 for path in [PDF_ROOT, CUSTOMGPT_FILES]:
-    if not os.path.exists(path):
-        os.makedirs(path)
+    if not path.exists():
+        path.mkdir(parents=True)
         print(f"Created missing directory: {path}")
 
 # Set OpenAI API Key
@@ -25,12 +27,8 @@ openai.api_key = os.getenv("CUSTOM_API_KEY")
 
 # Helper: Get all PDFs
 def get_all_pdfs():
-    """Recursively find all PDF files in the root directory."""
-    pdf_files = []
-    for root, dirs, files in os.walk(PDF_ROOT):
-        for file in files:
-            if file.endswith(".pdf"):
-                pdf_files.append(os.path.join(root, file))
+    """Recursively find all PDF files in the Uploaded_PDFs folder."""
+    pdf_files = [f for f in PDF_ROOT.glob("**/*.pdf")]
     print(f"Found PDF files: {pdf_files}")  # Debug log
     return pdf_files
 
@@ -47,7 +45,7 @@ def search_query_in_pdfs(query):
                     snippet_start = text.lower().find(query.lower())
                     snippet = text[max(0, snippet_start - 50):snippet_start + 150]
                     results.append({
-                        "file": os.path.relpath(pdf_path, PDF_ROOT),
+                        "file": pdf_path.relative_to(PDF_ROOT).as_posix(),
                         "page": page_num,
                         "snippet": snippet
                     })
@@ -67,7 +65,7 @@ def custom_gpt(query):
     """Process a query using PDFs first, then cached files, and finally OpenAI GPT."""
     print(f"Processing query: {query}")
 
-    # Step 1: Search in PDFs using the same logic as /query
+    # Step 1: Search in PDFs
     pdf_results = search_query_in_pdfs(query)
     if pdf_results:
         # Format the first result from the PDF search
@@ -77,8 +75,17 @@ def custom_gpt(query):
             f"{top_result['snippet']}"
         )
 
-    # Step 2: Fallback to OpenAI GPT
-    print("Query not found in PDFs. Falling back to OpenAI GPT.")
+    # Step 2: Search in cached text files
+    for filename in CUSTOMGPT_FILES.glob("*.pdf.txt"):
+        with filename.open("r") as f:
+            content = f.read()
+            if is_query_match(query, content):
+                start_index = content.lower().find(query.lower())
+                snippet = content[start_index:start_index + 200]
+                return f"Found in {filename.stem}: {snippet}..."
+
+    # Step 3: Fallback to OpenAI GPT
+    print("Query not found in PDFs or cached files. Falling back to OpenAI GPT.")
     try:
         ai_response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -105,8 +112,8 @@ def chat():
 
 @app.route('/list', methods=['GET'])
 def list_pdfs():
-    """List all PDFs available in the root directory."""
-    pdf_files = [os.path.relpath(path, PDF_ROOT) for path in get_all_pdfs()]
+    """List all PDFs available in the Uploaded_PDFs directory."""
+    pdf_files = [path.relative_to(PDF_ROOT).as_posix() for path in get_all_pdfs()]
     return jsonify({"pdf_files": pdf_files})
 
 @app.route('/routes', methods=['GET'])
@@ -122,3 +129,5 @@ def list_routes():
 if __name__ == "__main__":
     print(f"Starting server with PDF_ROOT set to: {PDF_ROOT}")
     app.run(debug=True, port=8000)
+
+

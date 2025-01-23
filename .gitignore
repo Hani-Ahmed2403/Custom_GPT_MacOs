@@ -23,5 +23,11 @@ __pycache__/
 .env.*
 
 # Custom directories
-CustomGPT_files/
+# Ignore all files in CustomGPT_files except PDFs and specific subdirectories
+CustomGPT_files/*
+!CustomGPT_files/*.pdf
+!CustomGPT_files/specific_subdir/
+
+# Allow the CustomGPT_files/ directory itself
+!CustomGPT_files/
 
