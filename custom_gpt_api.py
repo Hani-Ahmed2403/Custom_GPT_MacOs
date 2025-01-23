@@ -21,12 +21,9 @@ POPLER_PATH = "/opt/homebrew/bin"
 
 # Ensure directories exist
 for path in [PDF_ROOT, PDF_FOLDER, CUSTOMGPT_FILES]:
-    try:
-        if not os.path.exists(path):
-            os.makedirs(path)
-            print(f"Created missing directory: {path}")
-    except Exception as e:
-        print(f"Error creating directory {path}: {e}")
+    if not os.path.exists(path):
+        os.makedirs(path)
+        print(f"Created missing directory: {path}")
 
 # Set OpenAI API Key
 openai.api_key = os.getenv("CUSTOM_API_KEY")
@@ -62,23 +59,6 @@ def search_query_in_pdfs(query):
             print(f"Error reading {pdf_path}: {e}")
     return results
 
-# Helper: Preprocess PDFs into cached text files
-def preprocess_pdfs():
-    """Convert PDFs to text files using OCR and cache results."""
-    for filename in os.listdir(CUSTOMGPT_FILES):
-        if filename.endswith(".pdf"):
-            file_path = os.path.join(CUSTOMGPT_FILES, filename)
-            text_output_path = f"{file_path}.txt"
-            if not os.path.exists(text_output_path):
-                try:
-                    images = convert_from_path(file_path, poppler_path=POPLER_PATH)
-                    content = ''.join([image_to_string(img, config="--oem 3 --psm 6") for img in images])
-                    with open(text_output_path, "w") as f:
-                        f.write(content)
-                    print(f"Processed and cached: {filename}")
-                except Exception as e:
-                    print(f"Error processing {filename}: {e}")
-
 # Helper: Check for partial query matches
 def is_query_match(query, content):
     """Check if the query partially matches the content."""
@@ -87,10 +67,20 @@ def is_query_match(query, content):
 
 # Function: Process user queries
 def custom_gpt(query):
-    """Process a query using cached PDFs or fallback to OpenAI GPT."""
-    response = "No relevant content found."
+    """Process a query using PDFs first, then cached files, and finally OpenAI GPT."""
     print(f"Processing query: {query}")
 
+    # Step 1: Search in PDFs using the same logic as /query
+    pdf_results = search_query_in_pdfs(query)
+    if pdf_results:
+        # Format the first result from the PDF search
+        top_result = pdf_results[0]
+        return (
+            f"I found this in '{top_result['file']}' (page {top_result['page']}): "
+            f"{top_result['snippet']}"
+        )
+
+    # Step 2: Search in cached text files
     for filename in os.listdir(CUSTOMGPT_FILES):
         if filename.endswith(".pdf.txt"):
             with open(os.path.join(CUSTOMGPT_FILES, filename), "r") as f:
@@ -100,8 +90,8 @@ def custom_gpt(query):
                     snippet = content[start_index:start_index + 200]
                     return f"Found in {filename.replace('.txt', '')}: {snippet}..."
 
-    # Fallback to OpenAI GPT
-    print("Query not found in PDFs. Falling back to OpenAI GPT.")
+    # Step 3: Fallback to OpenAI GPT
+    print("Query not found in PDFs or cached files. Falling back to OpenAI GPT.")
     try:
         ai_response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -112,28 +102,9 @@ def custom_gpt(query):
         return ai_response['choices'][0]['message']['content'].strip()
     except Exception as e:
         print(f"Error querying OpenAI: {e}")
-        return "Sorry, I couldn't process your request."
+        return "An error occurred while processing your query."
 
 # Flask Endpoints
-@app.route('/list', methods=['GET'])
-def list_pdfs():
-    """List all PDFs available in the root directory."""
-    pdf_files = [os.path.relpath(path, PDF_ROOT) for path in get_all_pdfs()]
-    return jsonify({"pdf_files": pdf_files})
-
-@app.route('/query', methods=['POST'])
-def query_pdfs():
-    """Query a term in all PDFs."""
-    data = request.json
-    query = data.get("query", "").strip()
-    if not query:
-        return jsonify({"error": "No query provided"}), 400
-
-    results = search_query_in_pdfs(query)
-    if not results:
-        return jsonify({"results": "No matches found."})
-    return jsonify({"results": results})
-
 @app.route('/chat', methods=['POST'])
 def chat():
     """Chat endpoint to process queries using CustomGPT."""
@@ -145,37 +116,5 @@ def chat():
     user_message = data.get('message', '')
     return jsonify({"reply": custom_gpt(user_message)})
 
-# Watchdog: Monitor PDF Folder
-class PDFHandler(FileSystemEventHandler):
-    def on_created(self, event):
-        if event.src_path.endswith(".pdf"):
-            print(f"New PDF detected: {event.src_path}")
-            subprocess.run(["python3", "extract_text.py", event.src_path])
-
-    def on_deleted(self, event):
-        if event.src_path.endswith(".pdf"):
-            print(f"PDF removed: {event.src_path}")
-
-def start_watchdog():
-    event_handler = PDFHandler()
-    observer = Observer()
-    observer.schedule(event_handler, PDF_FOLDER, recursive=False)
-    observer.start()
-    print("Monitoring PDFs...")
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
-
-# Main Function
 if __name__ == "__main__":
-    preprocess_pdfs()  # Preprocess PDFs on startup
-
-    # Start Flask server in a separate thread
-    flask_thread = threading.Thread(target=lambda: app.run(debug=True, port=8000, use_reloader=False))
-    flask_thread.start()
-
-    # Start watchdog for monitoring
-    start_watchdog()
+    app.run(debug=True, port=8000)
