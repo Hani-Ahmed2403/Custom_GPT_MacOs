@@ -165,8 +165,20 @@ def query_files():
 
     if matches:
         return jsonify({"matches": matches})
-    else:
-        return jsonify({"message": "No relevant content found."})
+
+    # Fallback to OpenAI GPT
+    print("No matches found. Falling back to OpenAI GPT.")
+    try:
+        ai_response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": query}],
+            max_tokens=500,
+            temperature=0.7
+        )
+        return jsonify({"reply": ai_response['choices'][0]['message']['content'].strip()})
+    except Exception as e:
+        print(f"Error querying OpenAI: {e}")
+        return jsonify({"message": "Error querying OpenAI GPT."}), 500
 
 if __name__ == "__main__":
     print("Starting Flask server...")
