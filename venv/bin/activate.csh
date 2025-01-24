@@ -8,7 +8,11 @@ alias deactivate 'test $?_OLD_VIRTUAL_PATH != 0 && setenv PATH "$_OLD_VIRTUAL_PA
 # Unset irrelevant variables.
 deactivate nondestructive
 
+<<<<<<< HEAD
 setenv VIRTUAL_ENV "/Users/haniahmed/Documents/CustomGPT/Custom_GPT/venv"
+=======
+setenv VIRTUAL_ENV "/Users/haniahmed/Documents/CustomGPT/venv"
+>>>>>>> 96b9dca (Initial commit for Azure deployment)
 
 set _OLD_VIRTUAL_PATH="$PATH"
 setenv PATH "$VIRTUAL_ENV/bin:$PATH"

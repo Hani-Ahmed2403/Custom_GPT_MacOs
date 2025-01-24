@@ -29,7 +29,11 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
+<<<<<<< HEAD
 set -gx VIRTUAL_ENV "/Users/haniahmed/Documents/CustomGPT/Custom_GPT/venv"
+=======
+set -gx VIRTUAL_ENV "/Users/haniahmed/Documents/CustomGPT/venv"
+>>>>>>> 96b9dca (Initial commit for Azure deployment)
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 #!/Users/haniahmed/Documents/CustomGPT/Custom_GPT/venv/bin/python3
+=======
+#!/Users/haniahmed/Documents/CustomGPT/venv/bin/python3
+>>>>>>> 96b9dca (Initial commit for Azure deployment)
 # -*- coding: utf-8 -*-
 import re
 import sys
