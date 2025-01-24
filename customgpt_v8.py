@@ -9,7 +9,12 @@ from fuzzywuzzy import fuzz
 from difflib import SequenceMatcher
 import openai
 
+# Flask app initialization
 app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Hello, Azure!"
 
 # Define constants
 FOLDER_PATH = "/Users/haniahmed/Documents/Uploaded_PDFs/Basic_Pdfs"
@@ -113,15 +118,18 @@ def fuzzy_match(query, content, snippet_length=500):
     highest_score = 0
 
     for paragraph in paragraphs:
+        # Use partial_ratio and SequenceMatcher for more accurate matching
         partial_score = fuzz.partial_ratio(query.lower(), paragraph.lower())
         sequence_score = SequenceMatcher(None, query.lower(), paragraph.lower()).ratio() * 100
+
         combined_score = (partial_score + sequence_score) / 2
 
-        if combined_score > highest_score and combined_score > 60:  # Lowered threshold for better matches
+        if combined_score > highest_score and combined_score > 75:  # Adjustable threshold
             highest_score = combined_score
             best_match = paragraph
 
     if best_match:
+        # Return a longer snippet with surrounding text
         start_index = content.find(best_match)
         return content[max(0, start_index - snippet_length):start_index + len(best_match) + snippet_length]
     return None
@@ -139,7 +147,6 @@ def query_files():
     preprocess_all_files()
 
     normalized_query = normalize_query(query)
-    print(f"Normalized Query: {normalized_query}")
 
     for root, _, files in os.walk(FOLDER_PATH):
         for file in files:
@@ -147,7 +154,6 @@ def query_files():
                 txt_file_path = os.path.join(root, file)
                 with open(txt_file_path, "r") as f:
                     content = f.read()
-                    print(f"Checking file: {file}")
                     if normalized_query in content.lower():
                         start_index = content.lower().find(normalized_query)
                         snippet = content[max(0, start_index - 500):start_index + 500]
@@ -159,23 +165,12 @@ def query_files():
 
     if matches:
         return jsonify({"matches": matches})
-
-    # Fallback to OpenAI GPT
-    print("No matches found. Falling back to OpenAI GPT.")
-    try:
-        ai_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": query}],
-            max_tokens=500,
-            temperature=0.7
-        )
-        return jsonify({"reply": ai_response['choices'][0]['message']['content'].strip()})
-    except Exception as e:
-        print(f"Error querying OpenAI: {e}")
-        return jsonify({"message": "Error querying OpenAI GPT."}), 500
+    else:
+        return jsonify({"message": "No relevant content found."})
 
 if __name__ == "__main__":
     print("Starting Flask server...")
     app.run(debug=True, host='0.0.0.0', port=8000)
+
 
 
