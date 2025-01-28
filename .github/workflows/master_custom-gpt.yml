@@ -22,7 +22,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
 
@@ -54,9 +53,7 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
-          client-secret: ${{ secrets.AZUREAPPSERVICE_ClIENTSECRET }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
@@ -64,4 +61,5 @@ jobs:
         with:
           app-name: 'custom-gpt'
           slot-name: 'Production'
+
 
