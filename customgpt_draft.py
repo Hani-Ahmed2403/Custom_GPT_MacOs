@@ -9,62 +9,72 @@ from io import BytesIO
 from docx import Document
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/ask": {"origins": "*"}})  # Allow CORS for /ask
 
-# Simplified Configuration
 CONFIG = {
     "MAX_TEXT_LENGTH": 1500,
-    "MAX_BLOBS": 10,  # Reduced for WordPress compatibility
-    "SIMILARITY_THRESHOLD": 0.15  # Lower threshold for broader matches
+    "MAX_BLOBS": 10,
+    "SIMILARITY_THRESHOLD": 0.15
 }
 
-# Initialize Azure Client
-container_client = ContainerClient.from_connection_string(
-    conn_str=os.getenv("AZURE_CONN_STR"),
-    container_name="documents"
-)
+# Initialize Azure Client with error handling
+try:
+    container_client = ContainerClient.from_connection_string(
+        conn_str=os.getenv("AZURE_CONN_STR"),
+        container_name="documents"
+    )
+    # Verify container exists
+    if not container_client.exists():
+        raise RuntimeError("Azure container 'documents' not found")
+except Exception as e:
+    logging.error(f"Azure init failed: {str(e)}")
+    raise
 
-# Simplified Processing Functions
 def process_file(blob_data, extension):
     try:
-        if extension == 'pdf':
+        if extension.lower() == 'pdf':
             reader = PdfReader(BytesIO(blob_data))
-            return [page.extract_text()[:CONFIG['MAX_TEXT_LENGTH']] for page in reader.pages]
-        elif extension == 'docx':
+            return [page.extract_text()[:CONFIG['MAX_TEXT_LENGTH']] 
+                   for page in reader.pages if page.extract_text()]
+        elif extension.lower() == 'docx':
             doc = Document(BytesIO(blob_data))
-            return [para.text[:CONFIG['MAX_TEXT_LENGTH']] for para in doc.paragraphs if para.text.strip()]
+            return [para.text[:CONFIG['MAX_TEXT_LENGTH']] 
+                   for para in doc.paragraphs if para.text.strip()]
     except Exception as e:
-        logging.error(f"Processing error: {str(e)}")
+        logging.error(f"Error processing {extension} file: {str(e)}")
     return []
 
-# Unified Search Endpoint
 @app.route('/ask', methods=['POST'])
 def handle_query():
-    query = request.json.get('query', '').strip()
-    if not query:
-        return jsonify({"error": "Empty query"}), 400
-
     try:
-        # 1. Search Documents
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        if not query:
+            return jsonify({"error": "Empty query"}), 400
+
         results = []
         blobs = list(container_client.list_blobs())[:CONFIG['MAX_BLOBS']]
         
         for blob in blobs:
-            blob_client = container_client.get_blob_client(blob.name)
-            data = blob_client.download_blob().readall()
-            content = process_file(data, blob.name.split('.')[-1])
-            
-            if any(query.lower() in text.lower() for text in content):
-                results.append({
-                    "filename": blob.name,
-                    "excerpts": [t for t in content if query.lower() in t.lower()][:3]
-                })
+            try:
+                blob_client = container_client.get_blob_client(blob.name)
+                data = blob_client.download_blob().readall()
+                extension = blob.name.split('.')[-1].lower()
+                content = process_file(data, extension)
+                
+                if any(query.lower() in text.lower() for text in content):
+                    results.append({
+                        "filename": blob.name,
+                        "excerpts": [t for t in content if query.lower() in t.lower()][:3]
+                    })
+            except Exception as e:
+                logging.error(f"Error processing {blob.name}: {str(e)}")
+                continue
 
-        # 2. Return matches or fallback to OpenAI
         if results:
             return jsonify({"results": results})
             
-        # 3. OpenAI Fallback
+        # OpenAI fallback
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": query}]
@@ -79,6 +89,5 @@ def handle_query():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8000)
-
 
 
