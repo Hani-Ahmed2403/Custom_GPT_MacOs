@@ -58,7 +58,7 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'custom-gpt'
+          app-name: 'custom-gpt-1'
           slot-name: 'Production'
 
 
