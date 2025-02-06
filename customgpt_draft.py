@@ -7,74 +7,72 @@ import openai
 from PyPDF2 import PdfReader
 from io import BytesIO
 from docx import Document
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Add validation check
+if not os.getenv("AZURE_CONN_STR"):
+    raise ValueError("AZURE_CONN_STR environment variable is missing!")
 
 app = Flask(__name__)
-CORS(app, resources={r"/ask": {"origins": "*"}})  # Allow CORS for /ask
+CORS(app)
 
+# Simplified Configuration
 CONFIG = {
     "MAX_TEXT_LENGTH": 1500,
-    "MAX_BLOBS": 10,
-    "SIMILARITY_THRESHOLD": 0.15
+    "MAX_BLOBS": 10,  # Reduced for WordPress compatibility
+    "SIMILARITY_THRESHOLD": 0.15  # Lower threshold for broader matches
 }
 
-# Initialize Azure Client with error handling
-try:
-    container_client = ContainerClient.from_connection_string(
-        conn_str=os.getenv("AZURE_CONN_STR"),
-        container_name="documents"
-    )
-    # Verify container exists
-    if not container_client.exists():
-        raise RuntimeError("Azure container 'documents' not found")
-except Exception as e:
-    logging.error(f"Azure init failed: {str(e)}")
-    raise
+# Initialize Azure Client
+container_client = ContainerClient.from_connection_string(
+    conn_str=os.getenv("AZURE_CONN_STR"),
+    container_name="customgpt"
+)
 
+# Simplified Processing Functions
 def process_file(blob_data, extension):
     try:
-        if extension.lower() == 'pdf':
+        if extension == 'pdf':
             reader = PdfReader(BytesIO(blob_data))
-            return [page.extract_text()[:CONFIG['MAX_TEXT_LENGTH']] 
-                   for page in reader.pages if page.extract_text()]
-        elif extension.lower() == 'docx':
+            return [page.extract_text()[:CONFIG['MAX_TEXT_LENGTH']] for page in reader.pages]
+        elif extension == 'docx':
             doc = Document(BytesIO(blob_data))
-            return [para.text[:CONFIG['MAX_TEXT_LENGTH']] 
-                   for para in doc.paragraphs if para.text.strip()]
+            return [para.text[:CONFIG['MAX_TEXT_LENGTH']] for para in doc.paragraphs if para.text.strip()]
     except Exception as e:
-        logging.error(f"Error processing {extension} file: {str(e)}")
+        logging.error(f"Processing error: {str(e)}")
     return []
 
+# Unified Search Endpoint
 @app.route('/ask', methods=['POST'])
 def handle_query():
-    try:
-        data = request.get_json()
-        query = data.get('query', '').strip()
-        if not query:
-            return jsonify({"error": "Empty query"}), 400
+    query = request.json.get('query', '').strip()
+    if not query:
+        return jsonify({"error": "Empty query"}), 400
 
+    try:
+        # 1. Search Documents
         results = []
         blobs = list(container_client.list_blobs())[:CONFIG['MAX_BLOBS']]
         
         for blob in blobs:
-            try:
-                blob_client = container_client.get_blob_client(blob.name)
-                data = blob_client.download_blob().readall()
-                extension = blob.name.split('.')[-1].lower()
-                content = process_file(data, extension)
-                
-                if any(query.lower() in text.lower() for text in content):
-                    results.append({
-                        "filename": blob.name,
-                        "excerpts": [t for t in content if query.lower() in t.lower()][:3]
-                    })
-            except Exception as e:
-                logging.error(f"Error processing {blob.name}: {str(e)}")
-                continue
+            blob_client = container_client.get_blob_client(blob.name)
+            data = blob_client.download_blob().readall()
+            content = process_file(data, blob.name.split('.')[-1])
+            
+            if any(query.lower() in text.lower() for text in content):
+                results.append({
+                    "filename": blob.name,
+                    "excerpts": [t for t in content if query.lower() in t.lower()][:3]
+                })
 
+        # 2. Return matches or fallback to OpenAI
         if results:
             return jsonify({"results": results})
             
-        # OpenAI fallback
+        # 3. OpenAI Fallback
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": query}]
@@ -88,6 +86,6 @@ def handle_query():
         return jsonify({"error": "Service unavailable"}), 500
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8000)
+    app.run(host='0.0.0.0', port=5000)
 
 
