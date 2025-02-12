@@ -73,13 +73,15 @@ def handle_query():
             return jsonify({"results": results})
             
         # 3. OpenAI Fallback
-        response = openai.ChatCompletion.create(
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": query}]
         )
-        return jsonify({
-            "reply": response.choices[0].message.content
-        })
+
+        # Fix indentation here
+        return jsonify({"reply": response.choices[0].message.content})
 
     except Exception as e:
         logging.error(f"System error: {str(e)}")
